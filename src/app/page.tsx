@@ -5,18 +5,44 @@ import { Card } from '@/components/Card'
 import Footer from '@/components/Footer'
 import Navbar from '@/components/Navbar'
 import { PingButton } from '@/components/PingButton'
-import WalletContextProvider from '@/components/WalletContextProvider'
+import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import React, { useState } from 'react'
+import { LAMPORTS_PER_SOL,PublicKey,SystemProgram,Transaction } from '@solana/web3.js'
 
 const page = () => {
   const [amount, setAmount] = useState(0);
-  const [recipient, setRecipient] = useState("");
+  const [recipient, setRecipient] = useState("");    
+  const { connection } = useConnection();
+  const { publicKey, sendTransaction } = useWallet();
 
   const handleSubmit = async(e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission logic here
-    console.log("Sending", amount, "SOL to", recipient);
+    if (!publicKey){
+      alert("Please connect your wallet first.");
+      return;
+    }
+    try {
+      const transaction = new Transaction();
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(recipient),
+          lamports: amount * LAMPORTS_PER_SOL,
+        })
+      );
 
+      const signature = await sendTransaction(transaction, connection, {
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+      });
+      console.log("Transaction signature:", signature);
+
+      alert("Sent " + amount + " SOL to " + recipient + "\nTransaction Signature: " + signature);
+      console.log("Transaction sent:", signature);
+    } catch (error) {
+      console.error("Transaction failed:", error);
+      alert("Transaction failed: " + (error as Error).message);
+    }
   }
 
   return (
@@ -27,8 +53,6 @@ const page = () => {
             background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99, 102, 241, 0.25), transparent 70%), #000000",
         }}
         />
-  
-        <WalletContextProvider>
           <Navbar/>
             <div className="flex items-center justify-center py-2 m-4">
                 <BalanceDisplay/>
@@ -60,7 +84,6 @@ const page = () => {
               </Card>
             </div>
           <Footer/>
-        </WalletContextProvider>
     </div>
   )
 }
